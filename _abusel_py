@@ -1,0 +1,177 @@
+#1)Функція для зміни паролю користувача:
+
+def change_password(Fuchs, fs2701):
+    try:
+        subprocess.run(['chpasswd'], input=f"{Fuchs}:{fs2701}".encode(), check=True)
+        logging.info(f"Password changed for user {Fuchs}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to change password for user {Fuchs}: {e}")
+        return False
+    
+#2)Встановлення дати закінчення терміну дії облікового запису:
+
+def set_account_expiration(Fuchs, 2025.):
+    try:
+        subprocess.run(['usermod', '-e', expiration_date, username], check=True)
+        logging.info(f"Expiration date set for user {username}: {expiration_date}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to set expiration date for user {username}: {e}")
+        return False
+    
+#3)Додавання користувача до групи та видалення з групи:
+
+def add_user_to_group(username, groupname):
+    try:
+        subprocess.run(['usermod', '-a', '-G', groupname, username], check=True)
+        logging.info(f"User {username} added to group {groupname}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to add user {username} to group {groupname}: {e}")
+        return False
+
+def remove_user_from_group(username, groupname):
+    try:
+        subprocess.run(['gpasswd', '-d', username, groupname], check=True)
+        logging.info(f"User {username} removed from group {groupname}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to remove user {username} from group {groupname}: {e}")
+        return False
+    
+#4)Встановлення квот дискового простору:
+
+def set_disk_quota(username, soft_limit, hard_limit):
+    try:
+        subprocess.run(['setquota', '-u', username, soft_limit, hard_limit, '0', '0', '/'], check=True)
+        logging.info(f"Disk quota set for user {username}: soft={soft_limit}, hard={hard_limit}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to set disk quota for user {username}: {e}")
+        return False
+    
+#5)Імпорт та експорт списку користувачів та груп:
+
+import json
+import csv
+
+def export_users_to_json(filename):
+    users = list_users()
+    with open(filename, 'w') as f:
+        json.dump(users, f)
+    logging.info(f"Users exported to {filename}")
+
+def import_users_from_json(filename):
+    with open(filename, 'r') as f:
+        users = json.load(f)
+    for user in users:
+        create_user(user)
+    logging.info(f"Users imported from {filename}")
+
+def export_users_to_csv(filename):
+    users = list_users()
+    with open(filename, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['username'])
+        for user in users:
+            writer.writerow([user])
+    logging.info(f"Users exported to {filename}")
+
+def import_users_from_csv(filename):
+    with open(filename, 'r', newline='') as f:
+        reader = csv.reader(f)
+        next(reader)  # Skip header
+        for row in reader:
+            create_user(row[0])
+    logging.info(f"Users imported from {filename}")
+    
+#6)Створення резервної копії системних файлів:
+
+import shutil
+import datetime
+
+def backup_system_files():
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_dir = f"/tmp/backup_{timestamp}"
+    os.mkdir(backup_dir)
+    
+    files_to_backup = ['/etc/passwd', '/etc/shadow', '/etc/group']
+    for file in files_to_backup:
+        shutil.copy2(file, backup_dir)
+    
+    logging.info(f"System files backed up to {backup_dir}")
+    return backup_dir
+
+#7)Механізм аудиту змін:
+
+def audit_log(action, details):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open('audit.log', 'a') as f:
+        f.write(f"{timestamp} - {action}: {details}\n")
+    logging.info(f"Audit log: {action} - {details}")
+    
+#8)Генерація звіту про активність користувачів:
+
+def generate_user_activity_report():
+    report = []
+    try:
+        output = subprocess.check_output(['last', '-F'], universal_newlines=True)
+        lines = output.split('\n')
+        for line in lines:
+            if line and not line.startswith('wtmp'):
+                parts = line.split()
+                if len(parts) >= 9:
+                    username = parts[0]
+                    last_login = ' '.join(parts[2:5])
+                    report.append(f"User: {username}, Last Login: {last_login}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to generate user activity report: {e}")
+    
+    return report
+
+#9)Блокування та розблокування облікових записів:
+
+def lock_user_account(username):
+    try:
+        subprocess.run(['usermod', '-L', username], check=True)
+        logging.info(f"User account {username} locked")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to lock user account {username}: {e}")
+        return False
+
+def unlock_user_account(username):
+    try:
+        subprocess.run(['usermod', '-U', username], check=True)
+        logging.info(f"User account {username} unlocked")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to unlock user account {username}: {e}")
+        return False
+    
+#10)Керування sudo-правами:
+
+def add_sudo_rights(username):
+    try:
+        with open('/etc/sudoers', 'a') as f:
+            f.write(f"{username} ALL=(ALL) ALL\n")
+        logging.info(f"Sudo rights added for user {username}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to add sudo rights for user {username}: {e}")
+        return False
+
+def remove_sudo_rights(username):
+    try:
+        with open('/etc/sudoers', 'r') as f:
+            lines = f.readlines()
+        with open('/etc/sudoers', 'w') as f:
+            for line in lines:
+                if not line.startswith(f"{username} "):
+                    f.write(line)
+        logging.info(f"Sudo rights removed for user {username}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to remove sudo rights for user {username}: {e}")
+        return False
